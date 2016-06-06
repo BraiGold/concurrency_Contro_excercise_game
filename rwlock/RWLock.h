@@ -9,6 +9,11 @@ class RWLock {
         void wlock();
         void runlock();
         void wunlock();
+    private:
+      pthread_cond_t vc;
+      pthread_mutex_t mutex;
+      bool escritor;
+      int lectores;
 };
 
 #endif
