@@ -1,8 +1,10 @@
 #include "RWLock.h"
 
 RWLock :: RWLock() {
-  pthread_mutex_init(mutex, NIL);//NIL SON LOS ATRR
-pthread_cond_init(&vc, NIL);
+  pthread_mutex_init(mutex, 0);//NIL SON LOS ATRR ese 0
+pthread_cond_init(&vc, 0);//NIL SON LOS ATRR ese 0
+lectores=0;
+escritor=false;
 }
 
 void RWLock :: rlock() {
