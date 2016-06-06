@@ -186,15 +186,15 @@ void *read(void *data){
                    
 
         int tid = pthread_self();
-//        //printf("Soy : %d\n",tid);
+        printf("Soy : %d\n",tid);
         rw.rlock();
                 num++;
-                //printf("%d esta en s.crit \n",tid);
+                printf("%d esta en s.crit \n",tid);
                 sleep(1);
                 int miCoso = coso;
-                //printf("Elcoso  de %d es : %d \n",tid,miCoso);
+                printf("Elcoso  de %d es : %d \n",tid,miCoso);
         rw.runlock();
-        //printf("%d abandona s.crit  \n",tid);
+        printf("%d abandona s.crit  \n",tid);
         return NULL;
 }
 
@@ -202,17 +202,17 @@ void *read(void *data){
 void *write(void *data){
 
         int tid = pthread_self();
-        //printf("Soy el escritor : %d  \n",tid);
+        printf("Soy el escritor : %d  \n",tid);
         rw.wlock();
-                //printf("%d esta en s.crit y losanteriores son %d \n",tid,num);
+                printf("%d esta en s.crit y losanteriores son %d \n",tid,num);
                 num++;
                 sleep(1);
                 coso--;
                
-                //printf("%d modifico el valor de coso a %d\n",tid,coso);
+                printf("%d modifico el valor de coso a %d\n",tid,coso);
         rw.wunlock();
 
-        //printf("%d abandona s.crit  \n",tid);
+        printf("%d abandona s.crit  \n",tid);
        
         return NULL;
 }
