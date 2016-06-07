@@ -25,10 +25,7 @@ bool primero_del_equipo2=true;
 //RWLock'S
 RWLock tablero1RWL;
 RWLock tablero2RWL;
-RWLock nombre1RWL;
-RWLock nombre2RWL;
-RWLock primero1RWL;
-RWLock primero2RWL;
+RWLock nombresRWL;
 
 bool cargar_int(const char* numero, unsigned int& n) {
     char *eptr;
@@ -119,7 +116,7 @@ int main(int argc, const char* argv[]) {
 }
 
 
-void atendedor_de_jugador(void* socket_fd_pointer) {
+void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
     int socket_fd= *socket_fd_pointer;
     // variables locales del jugador
     char nombre_equipo[21];
@@ -130,25 +127,24 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
     if (recibir_nombre_equipo(socket_fd, nombre_equipo) != 0) {
         // el cliente cortó la comunicación, o hubo un error. Cerramos todo.
         terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1);
+        return NULL;
     }
 
     if (enviar_dimensiones(socket_fd) != 0) {
         // se produjo un error al enviar. Cerramos todo.
         terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1);
+        return NULL;
     }
 
     //asigno equipo
     std::vector<char> name(nombre_equipo);
-    primero1RWL.rlock();
-    p1=primero_del_equipo1
-    primero1RWL.runlock();
+
+    primero1RWL.wlock();
+    p1=primero_del_equipo1;
+
     if(p1){
-      primero1RWL.wlock();
-        primero_del_equipo1=false;
-      primero1RWL.wunlock();
-      nombre1RWL.wlock();
         nombre_equipo1(name);
-      nombre1RWL.wunlock();
+
       soy_equipo_1=true;
     }else{//no es el primero del equipo 1
       nombre1RWL.rlock();
@@ -158,9 +154,9 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
         soy_equipo_1=true;
       }else{// no soy del 1
         soy_equipo_1=false;
-        primero2RWL.rlock();
+        primero2RWL.wlock();
         p2=primero_del_equipo2;
-        primero2RWL.runlock();
+        primero2RWL.wunlock();
         if(p2){
           nombre2RWL.wlock();
           nombre_equipo2(name);
@@ -171,6 +167,8 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
           nombre2RWL.runlock();
           if(name!=nom2){
             terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1);
+            return NULL;
+
           }
         }
       }
@@ -206,6 +204,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                    return NULL;
                 }
 
                 continue;
@@ -225,6 +224,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
                 if (enviar_ok(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                    return NULL;
                 }
             }
             else {
@@ -234,6 +234,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                    return NULL;
                 }
             }
         }
@@ -246,6 +247,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                    return NULL;
                 }
 
             }else{
@@ -253,6 +255,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
                 peleando = true;
                 if (enviar_ok(socket_fd) != 0)
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                    return NULL;
             }
 
         }
@@ -264,6 +267,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                    return NULL;
                 }
 
                 continue;
@@ -279,6 +283,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
             if (enviar_ok(socket_fd) != 0) {
                 // se produjo un error al enviar. Cerramos todo.
                 terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                return NULL;
             }
         }
         else if (comando == MSG_BOMBA) {
@@ -304,6 +309,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
                     if (enviar_golpe(socket_fd) != 0) {
                         // se produjo un error al enviar. Cerramos todo.
                         terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                        return NULL;
                     }
 
                 }else if(contenido == BOMBA){
@@ -311,12 +317,14 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
                     if (enviar_estaba_golpeado(socket_fd) != 0) {
                         // se produjo un error al enviar. Cerramos todo.
                         terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                        return NULL;
                     }
                 }else{
                     // OK
                     if (enviar_ok(socket_fd) != 0) {
                         // se produjo un error al enviar. Cerramos todo.
                         terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                        return NULL;
                     }
                 }
             }
@@ -325,6 +333,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                    return NULL;
                 }
             }
 
@@ -333,6 +342,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
             if (enviar_tablero(socket_fd) != 0) {
                 // se produjo un error al enviar. Cerramos todo.
                 terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+                return NULL;
             }
         }
         else if (comando == MSG_INVALID) {
@@ -342,6 +352,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {
         else {
             // se produjo un error al recibir. Cerramos todo.
             terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador);
+            return NULL;
         }
     }
 }
@@ -449,7 +460,7 @@ int enviar_tablero(int socket_fd) {
 
 
     //Si no estoy peleando, muestro los barcos de mi equipo
-    if(!peleando){
+    if(!peleando){//   ------------------------------------------------------------------------------------------------------------------------------------------
         sprintf(buf, "BARCOS ");
         tablero = &tablero_equipo1;
         pos = 7;
@@ -525,7 +536,7 @@ void terminar_servidor_de_jugador(int socket_fd, list<Casillero>& barco_actual, 
 
     quitar_partes_barco(barco_actual, tablero_cliente);
 
-    exit(-1);
+
 }
 
 
