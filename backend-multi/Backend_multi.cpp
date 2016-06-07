@@ -181,13 +181,20 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
     vector<vector<char> > *tablero_jugador;
     vector<vector<char> > *tablero_rival;
 
+    //rwl por reff
+    RWLock& rwlJugador;
+    RWLock& rwlRival;
     //Veo que tablero usar dependiendo el equipo que soy
     if(!soy_equipo_1){
         tablero_jugador = &tablero_equipo2;
+        rwlJugador=tablero2RWL;
         tablero_rival = &tablero_equipo1;
+        rwlRival=tablero1RWL;
     }else{
         tablero_jugador = &tablero_equipo1;
+        rwlJugador=tablero1RWL;
         tablero_rival = &tablero_equipo2;
+        rwlRival=tablero2RWL;
     }
 
     while (true) {
@@ -219,7 +226,9 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
             // verificar si es una posición válida del tablero
             if (es_ficha_valida(ficha, barco_actual, *tablero_jugador)) {
                 barco_actual.push_back(ficha);
-                (*tablero_jugador)[ficha.fila][ficha.columna] = ficha.contenido;
+                    rwlJugador.wlock();
+                    (*tablero_jugador)[ficha.fila][ficha.columna] = ficha.contenido;
+                    rwlJugador.wunlock(); 
                 // OK
                 if (enviar_ok(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
