@@ -5,19 +5,247 @@
 #include <pthread.h>
 #include <assert.h>
 
-#define CANT_THREAD_LECTORES 5
-#define CANT_THREAD_ESCRITORES 2
+#define LECTORES 5
+#define ESCRITORES 7
 
 RWLock rw;
 int compartida;
-int num;
-void *write(void *data);
-void *read(void *data);
-void test_lectores_basico();
-void test_lectores_unEscritor();
-void test_lectores_unEscritor_mas_lectores();
-void test_lectores_escritores_mas_lectores();
-void test_muchos_lectores_escritores_intercaladosinanicion();
+
+void *read(void *data) { 
+        rw.rlock();
+                sleep(1);
+                int copiarCompartida = compartida;
+        rw.runlock();
+        return NULL;
+}
+
+
+void *write(void *data) {
+        rw.wlock();
+                sleep(1);
+                compartida--;
+        rw.wunlock();
+        return NULL;
+}
+
+int test_soloLectores(){
+
+        compartida = 10;
+
+        pthread_t thread[LECTORES];
+
+        //Creamos los threads lectores
+        for(int i=0; i<LECTORES; i++) {
+            pthread_create(&thread[i],NULL,read,NULL);
+        }
+
+        //Esperamos exits      
+        for(int i=0; i<LECTORES; i++) {
+            pthread_join(thread[i],NULL); //esperar exit
+        }
+        return compartida;
+}
+
+int test_soloEscritores(){
+
+        compartida = 10;
+
+        pthread_t thread[ESCRITORES];
+
+        //Creamos los threads lectores
+        for(int i=0; i<ESCRITORES; i++) {
+            pthread_create(&thread[i],NULL,write,NULL);
+        }
+
+        //Esperamos exits      
+        for(int i=0; i<ESCRITORES; i++) {
+            pthread_join(thread[i],NULL); //esperar exit
+        }
+        return compartida;
+}
+
+int test_unEscritorMuchosLectores(){
+
+        compartida = 10;
+
+        pthread_t thread[LECTORES + 1];
+
+        //Creamos un escritor
+        pthread_create(&thread[0],NULL,write,NULL);
+
+        //Chreamos los threads lectores
+        for(int i=1; i<LECTORES+1; i++) {
+               pthread_create(&thread[i],NULL,read,NULL);
+        }
+
+        // //Esperamos exits de todos
+        for(int i=0; i<LECTORES+1; i++) { 
+                pthread_join(thread[i],NULL); //esperar exit
+        }
+
+        return compartida;       
+}
+
+
+int test_lectoresEscritorLectores(){
+
+        compartida = 10;
+
+        pthread_t thread[LECTORES +1];
+
+        //Creamos los threads lectores
+         for(int i=0; i<(LECTORES+1) / 2; i++) {
+                pthread_create(&thread[i],NULL,read,NULL);
+         }
+
+        //Creamos un escritor
+        pthread_create(&thread[(LECTORES+1)/2],NULL,write,NULL);
+         
+        //Creamos los threads lectores
+         for(int i=((LECTORES+1) / 2) +1; i<LECTORES+1;i++)
+                pthread_create(&thread[i],NULL,read,NULL);
+
+        // //Esperamos exits de todos
+        for(int i=0;i<LECTORES+1;i++)
+                pthread_join(thread[i],NULL);
+
+        return compartida;       
+}
+
+int test_escritoresLectorEscritores(){
+
+        compartida = 10;
+
+        pthread_t thread[ESCRITORES +1];
+
+        //Creamos los threads ESCRITORES
+         for(int i=0; i<(ESCRITORES+1) / 2; i++) {
+                pthread_create(&thread[i],NULL,write,NULL);
+         }
+
+        //Creamos un LECTOR
+        pthread_create(&thread[(ESCRITORES+1)/2],NULL,read,NULL);
+         
+        //Creamos los threads ESCRITORES
+         for(int i=((ESCRITORES+1) / 2) +1; i<ESCRITORES+1;i++)
+                pthread_create(&thread[i],NULL,write,NULL);
+
+        // //Esperamos exits de todos
+        for(int i=0;i<ESCRITORES+1;i++)
+                pthread_join(thread[i],NULL);
+
+        return compartida;       
+}
+
+int test_lectoresEscritoresLectores(){
+
+        compartida = 10;
+
+        pthread_t thread[LECTORES + ESCRITORES];
+
+        //Creamos la mitad de los threads lectores
+        for(int i = 0; i<LECTORES / 2; i++)
+                pthread_create(&thread[i],NULL,read,NULL);
+
+        //Creamos los threads escritores
+        for(int i = LECTORES / 2; i < ESCRITORES+LECTORES/2; i++)
+                pthread_create(&thread[i],NULL,write,NULL);
+
+        //Creamos la mitad de los threads lectores
+        for(int i = LECTORES/2+ESCRITORES; i<LECTORES+ESCRITORES; i++)
+                pthread_create(&thread[i],NULL,read,NULL);
+
+        //Esperamos exits de todos
+        for(int i = 0; i < LECTORES + ESCRITORES; i++)
+                pthread_join(thread[i],NULL);
+
+        return compartida;       
+}
+
+int test_muchosLectoresPocosEscritores(){
+
+        compartida = 10;
+
+        pthread_t thread[100];
+
+        //Creamos los threads lectores
+        for(int i=0;i<25;i++){
+            pthread_create(&thread[i],NULL,read,NULL);
+        }
+
+        //Creamos un escritor      
+        pthread_create(&thread[25],NULL,write,NULL);
+
+        //Creamos mas lectores
+        for(int i=26;i<50;i++){
+            pthread_create(&thread[i],NULL,read,NULL);
+        }
+               
+        //Creamos un escritor  
+        pthread_create(&thread[50],NULL,write,NULL);
+         
+        //Creamos mas lectores
+        for(int i=51;i<75;i++){
+            pthread_create(&thread[i],NULL,read,NULL);
+        }
+
+        //Creamos un escritor
+        pthread_create(&thread[75],NULL,write,NULL);
+       
+        //Y mas lectores
+        for(int i=76;i<100;i++){
+            pthread_create(&thread[i],NULL,read,NULL);
+        }
+       
+        // //Esperamos exits de todos
+        for(int i=0;i<100;i++)
+            pthread_join(thread[i],NULL);
+
+        return compartida;
+       
+}
+
+int test_muchosEscritoresPocosLectores(){
+
+        compartida = 100;
+
+        pthread_t thread[100];
+
+        //Creamos los threads escritores
+        for(int i=0; i<25; i++){
+            pthread_create(&thread[i],NULL,write,NULL);
+        }
+
+        //Creamos un lector      
+        pthread_create(&thread[25],NULL,read,NULL);
+
+        //Creamos escritores
+        for(int i=26; i<50; i++){
+            pthread_create(&thread[i],NULL,write,NULL);
+        }
+               
+        //Creamos un lector  
+        pthread_create(&thread[50],NULL,read,NULL);
+         
+        //Creamos escritores
+        for(int i=51; i<75; i++){
+            pthread_create(&thread[i],NULL,write,NULL);
+        }
+
+        //Creamos un lector
+        pthread_create(&thread[75],NULL,read,NULL);
+       
+        //Creamos escritores
+        for(int i=76; i<100; i++)
+            pthread_create(&thread[i],NULL,write,NULL);
+       
+        // //Esperamos exits de todos
+        for(int i=0; i<100; i++)
+            pthread_join(thread[i],NULL);
+
+        return compartida;
+       
+}
 
 int main(int argc, char* argv[]) {
 
@@ -26,179 +254,29 @@ int main(int argc, char* argv[]) {
 
        
         //Corremos tests
-        assert(test_lectores_basico(), 10);
-        puts("Test_lectores_basico OK...");
+        assert(test_soloLectores() == 10);
+        puts("Test solo lectores OK...");
 
-        test_lectores_unEscritor();
-        puts("Test_lectores_unEscritor Ok...");
+        assert(test_soloEscritores() == 3);
+        puts("Test solo escritores OK...");
 
-        test_lectores_unEscritor_mas_lectores();
+        assert(test_unEscritorMuchosLectores() == 9);
+        puts("Test un escritor y varios lectores OK...");
 
-        puts("Test_lectores_unEscritor_mas lectores OK...");
+        assert(test_lectoresEscritorLectores() == 9);
+        puts("Test varios lectores con un escritor(en el medio) OK...");
 
-        test_lectores_escritores_mas_lectores();
-        puts("test_lectores_escritores_mas_lectores Ok...");
+        assert(test_escritoresLectorEscritores() == 3);
+        puts("Test varios escritores con un lector(en el medio) OK...");
 
-        test_muchos_lectores_escritores_intercaladosinanicion();
-        puts("Ok");
+        assert(test_lectoresEscritoresLectores() == 3 );
+        puts("Test lectores y escritores OK...");
+
+        assert(test_muchosLectoresPocosEscritores() == 7);
+        puts("Test muchos lectores y pocos escritores OK...");
    
-    return 0;
-}      
+        assert(test_muchosEscritoresPocosLectores() == 3);
+        puts("Test muchos escritores y pocos lectores OK...");
 
-int test_lectores_basico(){
-
-        compartida = 10;
-
-        pthread_t thread[CANT_THREAD_LECTORES];
-
-        //Creamos los threads lectores
-        for(int i=0; i<CANT_THREAD_LECTORES; i++) {
-            pthread_create(&thread[i],NULL,read,NULL);
-        }
-
-        //Esperamos exits      
-        for(int i=0; i<CANT_THREAD_LECTORES; i++) {
-            pthread_join(thread[i],NULL); //esperar exit
-        }
-        return compartida;
-}
-
-void test_lectores_unEscritor(){
-
-        compartida = 4;
-
-        pthread_t thread[CANT_THREAD_LECTORES +1];
-        int i = 0;
-
-        //Creamos un escritor
-        pthread_create(&thread[i],NULL,write,NULL);
-        //Chreamos los threads lectores
-         for(i=1;i<CANT_THREAD_LECTORES+1;i++)
-                pthread_create(&thread[i],NULL,read,NULL);
-
-
-        // //Esperamos exits de todos
-        for(i=0;i<CANT_THREAD_LECTORES+1;i++)
-                pthread_join(thread[i],NULL);
-
-        num = 0;
-       
-}
-
-
-void test_lectores_unEscritor_mas_lectores(){
-
-        compartida = 4;
-
-        pthread_t thread[CANT_THREAD_LECTORES +1];
-        int i = 0;
-
-        //Chreamos los threads lectores
-         for(i=0;i<(CANT_THREAD_LECTORES+1) / 2;i++)
-                pthread_create(&thread[i],NULL,read,NULL);
-
-        //Creamos un escritor
-        pthread_create(&thread[i],NULL,write,NULL);
-         
-        //Chreamos los threads lectores
-         for(i=((CANT_THREAD_LECTORES+1) / 2) +1;i<CANT_THREAD_LECTORES+1;i++)
-                pthread_create(&thread[i],NULL,read,NULL);
-
-        // //Esperamos exits de todos
-        for(i=0;i<CANT_THREAD_LECTORES+1;i++)
-                pthread_join(thread[i],NULL);
-
-        num  = 0;
-       
-}
-
-
-
-void test_lectores_escritores_mas_lectores(){
-
-        compartida = 4;
-
-        pthread_t thread[CANT_THREAD_LECTORES +CANT_THREAD_ESCRITORES];
-        int i = 0;
-
-        //Chreamos los threads lectores
-         for(i=0;i<CANT_THREAD_LECTORES / 2;i++)
-                pthread_create(&thread[i],NULL,read,NULL);
-
-        //Creamos un escritor
-          for(i=CANT_THREAD_LECTORES / 2;i < CANT_THREAD_ESCRITORES+CANT_THREAD_LECTORES/2;i++)
-                pthread_create(&thread[i],NULL,write,NULL);
-
-        //Chreamos los threads lectores
-         for(i=CANT_THREAD_LECTORES/2+CANT_THREAD_ESCRITORES;i<CANT_THREAD_LECTORES+CANT_THREAD_ESCRITORES;i++)
-                pthread_create(&thread[i],NULL,read,NULL);
-
-        // //Esperamos exits de todos
-        for(i=0;i<CANT_THREAD_LECTORES+CANT_THREAD_ESCRITORES;i++)
-                pthread_join(thread[i],NULL);
-
-        num = 0;
-       
-}
-
-void test_muchos_lectores_escritores_intercaladosinanicion(){
-
-        compartida = 4;
-
-        pthread_t thread[1000];
-        int i = 0;
-
-        //Chreamos los threads lectores
-         for(i=0;i<250;i++)
-                pthread_create(&thread[i],NULL,read,NULL);
-
-        //Creamos un escritor
-          for(i=250;i < 251;i++)
-                pthread_create(&thread[i],NULL,write,NULL);
-
-        //Chreamos mas lectores
-         for(i=251;i<500;i++)
-                pthread_create(&thread[i],NULL,read,NULL);
-               
-         //Creamos un escritor  
-          pthread_create(&thread[500],NULL,write,NULL);
-         
-          //Creamos mas lectores
-         for(i=501;i<750;i++)
-                pthread_create(&thread[i],NULL,read,NULL);
-
-        //Creamos un escritor
-
-         pthread_create(&thread[750],NULL,write,NULL);
-       
-         //Y mas lectores
-          for(i=751;i<1000;i++)
-                pthread_create(&thread[i],NULL,read,NULL);
-       
-        // //Esperamos exits de todos
-        for(i=0;i<1000;i++)
-                        pthread_join(thread[i],NULL);
-
-        num = 0;
-       
-}
-
-void *read(void *data) { 
-        int tid = pthread_self();
-        rw.rlock();
-                sleep(3);
-                int copiarCompartida = compartida;
-        rw.runlock();
-        return NULL;
-}
-
-
-void *write(void *data) {
-        int tid = pthread_self();
-        rw.wlock();
-                num++;
-                sleep(3);
-                compartida--;
-        rw.wunlock();
-        return NULL;
+        return 0;
 }
