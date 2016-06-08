@@ -3,12 +3,13 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <assert.h>
 
 #define CANT_THREAD_LECTORES 5
 #define CANT_THREAD_ESCRITORES 2
 
 RWLock rw;
-int coso;
+int compartida;
 int num;
 void *write(void *data);
 void *read(void *data);
@@ -25,7 +26,7 @@ int main(int argc, char* argv[]) {
 
        
         //Corremos tests
-        test_lectores_basico();
+        assert(test_lectores_basico(), 10);
         puts("Test_lectores_basico OK...");
 
         test_lectores_unEscritor();
@@ -44,26 +45,27 @@ int main(int argc, char* argv[]) {
     return 0;
 }      
 
-void test_lectores_basico(){
+int test_lectores_basico(){
 
-        coso = 4;
+        compartida = 10;
 
         pthread_t thread[CANT_THREAD_LECTORES];
-        int i = 0;
 
         //Creamos los threads lectores
-        for(i=0;i<CANT_THREAD_LECTORES;i++)
-                pthread_create(&thread[i],NULL,read,NULL);
+        for(int i=0; i<CANT_THREAD_LECTORES; i++) {
+            pthread_create(&thread[i],NULL,read,NULL);
+        }
 
         //Esperamos exits      
-        for(i=0;i<CANT_THREAD_LECTORES;i++)
-                pthread_join(thread[i],NULL);
-        num = 0;
+        for(int i=0; i<CANT_THREAD_LECTORES; i++) {
+            pthread_join(thread[i],NULL); //esperar exit
+        }
+        return compartida;
 }
 
 void test_lectores_unEscritor(){
 
-        coso = 4;
+        compartida = 4;
 
         pthread_t thread[CANT_THREAD_LECTORES +1];
         int i = 0;
@@ -86,7 +88,7 @@ void test_lectores_unEscritor(){
 
 void test_lectores_unEscritor_mas_lectores(){
 
-        coso = 4;
+        compartida = 4;
 
         pthread_t thread[CANT_THREAD_LECTORES +1];
         int i = 0;
@@ -114,7 +116,7 @@ void test_lectores_unEscritor_mas_lectores(){
 
 void test_lectores_escritores_mas_lectores(){
 
-        coso = 4;
+        compartida = 4;
 
         pthread_t thread[CANT_THREAD_LECTORES +CANT_THREAD_ESCRITORES];
         int i = 0;
@@ -141,7 +143,7 @@ void test_lectores_escritores_mas_lectores(){
 
 void test_muchos_lectores_escritores_intercaladosinanicion(){
 
-        coso = 4;
+        compartida = 4;
 
         pthread_t thread[1000];
         int i = 0;
@@ -181,38 +183,22 @@ void test_muchos_lectores_escritores_intercaladosinanicion(){
        
 }
 
-void *read(void *data){
-       
-                   
-
+void *read(void *data) { 
         int tid = pthread_self();
-//        //printf("Soy : %d\n",tid);
         rw.rlock();
-                num++;
-                //printf("%d esta en s.crit \n",tid);
-                sleep(1);
-                int miCoso = coso;
-                //printf("Elcoso  de %d es : %d \n",tid,miCoso);
+                sleep(3);
+                int copiarCompartida = compartida;
         rw.runlock();
-        //printf("%d abandona s.crit  \n",tid);
         return NULL;
 }
 
 
-void *write(void *data){
-
+void *write(void *data) {
         int tid = pthread_self();
-        //printf("Soy el escritor : %d  \n",tid);
         rw.wlock();
-                //printf("%d esta en s.crit y losanteriores son %d \n",tid,num);
                 num++;
-                sleep(1);
-                coso--;
-               
-                //printf("%d modifico el valor de coso a %d\n",tid,coso);
+                sleep(3);
+                compartida--;
         rw.wunlock();
-
-        //printf("%d abandona s.crit  \n",tid);
-       
         return NULL;
 }

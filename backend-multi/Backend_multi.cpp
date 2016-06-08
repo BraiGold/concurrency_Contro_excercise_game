@@ -1,6 +1,6 @@
 #include "Backend_multi.h"
 #include "RWLock.h"
-
+#include <string>
 using namespace std;
 
 
@@ -16,8 +16,8 @@ unsigned int ancho = -1;
 unsigned int alto = -1;
 
 //nombres de equipos
-vector<char> nombre_equipo1;
-vector<char> nombre_equipo2;
+string nombre_equipo1;
+string nombre_equipo2;
 
 //es el primero del equipo i?
 bool primero_del_equipo1=true;
@@ -116,8 +116,8 @@ int main(int argc, const char* argv[]) {
 }
 
 
-void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
-    int socket_fd= *socket_fd_pointer;
+void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
+    int socket_fd= *(int*)socket_fd_pointer;
     // variables locales del jugador
     char nombre_equipo[21];
 
@@ -125,8 +125,8 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
     list<Casillero> barco_actual;
 
     //rwl por reff
-    RWLock & rwlJugador;
-    RWLock & rwlRival;
+    RWLock rwlJugador;
+    RWLock rwlRival;
 
     if (recibir_nombre_equipo(socket_fd, nombre_equipo) != 0) {
         // el cliente cortó la comunicación, o hubo un error. Cerramos todo.
@@ -141,8 +141,8 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
     }
 
     //asigno equipo
-    std::vector<char> name(nombre_equipo);
-
+    string name(nombre_equipo);
+    bool soy_equipo_1;
     nombresRWL.wlock();
     if(primero_del_equipo1){
         nombre_equipo1 = name;
@@ -159,13 +159,13 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
           primero_del_equipo2=false;
         }else{
           if(name != nombre_equipo2){
-            terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1);
+            terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1, rwlJugador);
             return NULL;
           }
         }
       }
     }
-    nombresRWL.wunlock()//ya asigne el equipo entonces.
+    nombresRWL.wunlock();//ya asigne el equipo entonces.
     cout << "Esperando que juegue " << nombre_equipo << endl;
 
     //lo meto en su equipo
@@ -200,7 +200,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
             if(peleando){
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
-                    terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugado, rwlJugador));
+                    terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
                     return NULL;
                 }
 
@@ -222,7 +222,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
                 // OK
                 if (enviar_ok(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
-                    terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugado, rwlJugador));
+                    terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
                     return NULL;
                 }
             }
@@ -232,7 +232,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
 
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
-                    terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugado, rwlJugador));
+                    terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
                     return NULL;
                 }
             }
@@ -245,7 +245,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
 
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
-                    terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugado, rwlJugador));
+                    terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
                     return NULL;
                 }
 
@@ -253,7 +253,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
                 // Estamos listos para la pelea
                 peleando = true;
                 if (enviar_ok(socket_fd) != 0)
-                    terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugado, rwlJugador));
+                    terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
                     return NULL;
             }
 
