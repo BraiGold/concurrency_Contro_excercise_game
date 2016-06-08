@@ -1,5 +1,5 @@
 #include "Backend_multi.h"
-#include "RWLock.h"
+#include "./rwlock/RWLock.h"
 
 using namespace std;
 
@@ -106,7 +106,7 @@ int main(int argc, const char* argv[]) {
         else {
             //close(socket_servidor);
             pthread_t tid;
-            pthread_create(&tid, NULL, atendedor_de_jugador, &socketfd_cliente);
+            pthread_create(&tid, NULL, antendedor_de_jugador,(*void) &socketfd_cliente);
             //atendedor_de_jugador(socketfd_cliente);
         }
     }
@@ -125,8 +125,8 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
     list<Casillero> barco_actual;
 
     //rwl por reff
-    RWLock & rwlJugador;
-    RWLock & rwlRival;
+    RWLock& rwlJugador;
+    RWLock& rwlRival;
 
     if (recibir_nombre_equipo(socket_fd, nombre_equipo) != 0) {
         // el cliente cortó la comunicación, o hubo un error. Cerramos todo.

@@ -5,6 +5,8 @@
 #include "Encabezado.h"
 #include "Casillero.h"
 #include "Enviar_recibir.h"
+#include "RWLock.h"
+#include <pthread.h>
 
 using namespace std;
 bool cargar_int(const char* numero, unsigned int& n);
