@@ -139,40 +139,29 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
     //asigno equipo
     std::vector<char> name(nombre_equipo);
 
-    primero1RWL.wlock();
-    p1=primero_del_equipo1;
-
-    if(p1){
-        nombre_equipo1(name);
-
+    nombresRWL.wlock();
+    if(primero_del_equipo1){
+        nombre_equipo1 = name;
       soy_equipo_1=true;
+      primero_del_equipo1=false;
     }else{//no es el primero del equipo 1
-      nombre1RWL.rlock();
-      vector<char> nom1(nombre_equipo1);
-      nombre1RWL.runlock();
-      if(nom1==name){
+
+      if(nombre_equipo1==name){
         soy_equipo_1=true;
       }else{// no soy del 1
         soy_equipo_1=false;
-        primero2RWL.wlock();
-        p2=primero_del_equipo2;
-        primero2RWL.wunlock();
-        if(p2){
-          nombre2RWL.wlock();
-          nombre_equipo2(name);
-          nombre2RWL.wunlock();
+        if(primero_del_equipo2){
+          nombre_equipo2 = name;
+          primero_del_equipo2=false;
         }else{
-          nombre2RWL.rlock();
-          vector<char> nom2(nombre_equipo2);
-          nombre2RWL.runlock();
-          if(name!=nom2){
+          if(name != nombre_equipo2){
             terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1);
             return NULL;
-
           }
         }
       }
-    }//ya asigne el equipo entonces.
+    }
+    nombresRWL.wunlock()//ya asigne el equipo entonces.
     cout << "Esperando que juegue " << nombre_equipo << endl;
 
     //lo meto en su equipo
@@ -228,7 +217,7 @@ void atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
                 barco_actual.push_back(ficha);
                     rwlJugador.wlock();
                     (*tablero_jugador)[ficha.fila][ficha.columna] = ficha.contenido;
-                    rwlJugador.wunlock(); 
+                    rwlJugador.wunlock();
                 // OK
                 if (enviar_ok(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
