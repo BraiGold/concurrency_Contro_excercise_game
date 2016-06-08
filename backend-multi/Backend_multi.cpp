@@ -22,10 +22,15 @@ string nombre_equipo2;
 //es el primero del equipo i?
 bool primero_del_equipo1=true;
 bool primero_del_equipo2=true;
+
+//cant Jugadores TOTALES
+int cant_jugadores=0;//cantidad total de jugadores
+int cant_jugadores_listos=0;//cantidad que ya quieren pasar a etapa de pelea
 //RWLock'S
 RWLock tablero1RWL;
 RWLock tablero2RWL;
 RWLock nombresRWL;
+RWLock peleandoRWL;
 
 bool cargar_int(const char* numero, unsigned int& n) {
     char *eptr;
@@ -144,6 +149,7 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
     string name(nombre_equipo);
     bool soy_equipo_1;
     nombresRWL.wlock();
+    cant_jugadores++;
     if(primero_del_equipo1){
         nombre_equipo1 = name;
       soy_equipo_1=true;
@@ -197,7 +203,10 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
             Casillero ficha;
 
             //Si estoy peleando, no acepto barcos ya
-            if(peleando){
+            peleandoRWL.rlock();
+            bool peleandoLocal=peleando;
+            peleandoRWL.runlock();
+            if(peleandoLocal){
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
@@ -241,7 +250,10 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
             // El único cliente terminó de ubicar sus barcos
 
             //Si ya había terminado, enviar error
-            if(peleando){
+            peleandoRWL.rlock();
+            bool peleandoLocal=peleando;
+            peleandoRWL.runlock();
+            if(peleandoLocal){
 
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
@@ -251,7 +263,15 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
 
             }else{
                 // Estamos listos para la pelea
-                peleando = true;
+                nombresRWL.wlock();
+                cant_jugadores_listos++;
+                if(cant_jugadores==cant_jugadores_listos){
+                  peleandoRWL.wlock();
+                  peleando = true;
+                  peleandoRWL.wunlock();
+                }
+                nombresRWL.wunlock();
+
                 if (enviar_ok(socket_fd) != 0)
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
                     return NULL;
@@ -262,7 +282,10 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
 
 
             //Si estoy peleando, no acepto barcos ya
-            if(peleando){
+            peleandoRWL.rlock();
+            bool peleandoLocal=peleando;
+            peleandoRWL.runlock();
+            if(peleandoLocal){
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
@@ -298,7 +321,10 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
 
             // ficha contiene la bomba a tirar
             // verificar si se está peleando y si es una posición válida del tablero
-            if (peleando && ficha.fila <= alto - 1 && ficha.columna <= ancho - 1) {
+            peleandoRWL.rlock();
+            bool peleandoLocal=peleando;
+            peleandoRWL.runlock();
+            if (peleandoLocal && ficha.fila <= alto - 1 && ficha.columna <= ancho - 1) {
 
                 //Si había un BARCO, pongo una BOMBA
                 rwlRival.rlock();
@@ -465,7 +491,10 @@ int enviar_tablero(int socket_fd, vector<vector<char> > tablero_jugador, vector<
 
 
     //Si no estoy peleando, muestro los barcos de mi equipo
-    if(!peleando){//   ------------------------------------------------------------------------------------------------------------------------------------------
+    peleandoRWL.rlock();
+    bool peleandoLocal=peleando;
+    peleandoRWL.runlock();
+    if(!peleandoLocal){//   ------------------------------------------------------------------------------------------------------------------------------------------
         sprintf(buf, "BARCOS ");
         rwlJugador.rlock();
         tablero = &tablero_jugador;
@@ -489,7 +518,7 @@ int enviar_tablero(int socket_fd, vector<vector<char> > tablero_jugador, vector<
                    break; //optional
                 case BARCO:
                    //si estoy peleando, oculto los barcos. Sino, los muestro
-                   buf[pos] = peleando ? '-' : 'B';
+                   buf[pos] = peleandoLocal ? '-' : 'B';
                    break; //optional
                 case BOMBA:
                     buf[pos] = '*';
