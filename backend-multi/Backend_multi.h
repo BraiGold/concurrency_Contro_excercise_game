@@ -23,7 +23,7 @@ int parsear_bomba(char* mensaje, Casillero& ficha);
 
 // mensajes enviados por el server
 int enviar_dimensiones(int socket_fd);
-int enviar_tablero(int socket_fd, vector<vector<char> > tablero_jugador, vector<vector<char> > tablero_rival, RWLock &rwlJugador, RWLock &rwlRival);
+int enviar_tablero(int socket_fd, vector<vector<char> >* tablero_jugador, vector<vector<char> >* tablero_rival, RWLock &rwlJugador, RWLock &rwlRival);
 int enviar_ok(int socket_fd);
 int enviar_error(int socket_fd);
 int enviar_golpe(int socket_fd);

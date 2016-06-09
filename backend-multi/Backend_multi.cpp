@@ -129,19 +129,17 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
      // lista de casilleros que ocupa el barco actual (aún no confirmado)
     list<Casillero> barco_actual;
 
-    //rwl por reff
-    RWLock rwlJugador;
-    RWLock rwlRival;
+
 
     if (recibir_nombre_equipo(socket_fd, nombre_equipo) != 0) {
         // el cliente cortó la comunicación, o hubo un error. Cerramos todo.
-        terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1, rwlJugador);
+        terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1, tablero1RWL);
         return NULL;
     }
 
     if (enviar_dimensiones(socket_fd) != 0) {
         // se produjo un error al enviar. Cerramos todo.
-        terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1, rwlJugador);
+        terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1, tablero1RWL);
         return NULL;
     }
 
@@ -165,7 +163,7 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
           primero_del_equipo2=false;
         }else{
           if(name != nombre_equipo2){
-            terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1, rwlJugador);
+            terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1, tablero1RWL);
             return NULL;
           }
         }
@@ -181,18 +179,23 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
     vector<vector<char> > *tablero_rival;
 
     //Veo que tablero usar dependiendo el equipo que soy
+    RWLock* rwlRivalPunt;
+    RWLock* rwlJugadorPunt;
     if(!soy_equipo_1){
         tablero_jugador = &tablero_equipo2;
-        rwlJugador = tablero2RWL;
+        rwlJugadorPunt = &tablero2RWL;
         tablero_rival = &tablero_equipo1;
-        rwlRival = tablero1RWL;
+        rwlRivalPunt = &tablero1RWL;
     }else{
         tablero_jugador = &tablero_equipo1;
-        rwlJugador = tablero1RWL;
+        rwlJugadorPunt = &tablero1RWL;
         tablero_rival = &tablero_equipo2;
-        rwlRival = tablero2RWL;
+        rwlRivalPunt = &tablero2RWL;
     }
 
+    //rwl por reff
+    RWLock& rwlJugador=*rwlJugadorPunt;
+    RWLock& rwlRival=*rwlRivalPunt;
     while (true) {
 
         // espera un barco o confirmación de juego
@@ -248,7 +251,6 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
         }
         else if (comando == MSG_LISTO) {
             // El único cliente terminó de ubicar sus barcos
-
             //Si ya había terminado, enviar error
             peleandoRWL.rlock();
             bool peleandoLocal=peleando;
@@ -264,19 +266,25 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
             }else{
                 // Estamos listos para la pelea
                 nombresRWL.wlock();
-                cant_jugadores_listos++;
-                if(cant_jugadores==cant_jugadores_listos){
-                  peleandoRWL.wlock();
-                  peleando = true;
-                  peleandoRWL.wunlock();
-                }
+                  cant_jugadores_listos++;
+                 int cant_jugadores_listos_local=cant_jugadores_listos;
+                int cant_jugadores_local=cant_jugadores;
                 nombresRWL.wunlock();
 
-                if (enviar_ok(socket_fd) != 0)
+                peleandoRWL.wlock();
+                std::cerr << "cant_jugadores_local ES: "<<cant_jugadores_local<< "y cant_jugadores_listos_local Es: "<<cant_jugadores_listos_local << std::endl;
+                if(cant_jugadores_local==cant_jugadores_listos_local){
+                  peleando = true;
+                }
+                std::cerr << "peleando es: "<<peleando << std::endl;
+                peleandoRWL.wunlock();
+
+                if (enviar_ok(socket_fd) != 0){
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
                     return NULL;
+                }
             }
-
+            std::cerr << "cierro El LISTO" << std::endl;
         }
         else if (comando == MSG_BARCO_TERMINADO) {
 
@@ -369,7 +377,8 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
 
         }
         else if (comando == MSG_UPDATE) {
-            if (enviar_tablero(socket_fd, *tablero_jugador, *tablero_rival, rwlJugador, rwlRival) != 0) {
+          std::cerr << "aca esta!!!" << std::endl;
+            if (enviar_tablero(socket_fd, tablero_jugador, tablero_rival, rwlJugador, rwlRival) != 0) {
                 // se produjo un error al enviar. Cerramos todo.
                 terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
                 return NULL;
@@ -484,34 +493,42 @@ int enviar_dimensiones(int socket_fd) {
 }
 
 
-int enviar_tablero(int socket_fd, vector<vector<char> > tablero_jugador, vector<vector<char> > tablero_rival, RWLock &rwlJugador, RWLock &rwlRival) {
+int enviar_tablero(int socket_fd, vector<vector<char> >* tablero_jugador, vector<vector<char> >* tablero_rival, RWLock &rwlJugador, RWLock &rwlRival) {
     char buf[MENSAJE_MAXIMO+1];
     int pos;
     vector<vector<char> > *tablero;
 
-
+    std::cerr << "llego a enviar tablero" << std::endl;
     //Si no estoy peleando, muestro los barcos de mi equipo
     peleandoRWL.rlock();
     bool peleandoLocal=peleando;
     peleandoRWL.runlock();
+    std::cerr << "hasta aca bien peleandoLocal es: "<< peleandoLocal << std::endl;
+    RWLock* tableroRWLPuntero;
+
     if(!peleandoLocal){//   ------------------------------------------------------------------------------------------------------------------------------------------
         sprintf(buf, "BARCOS ");
         rwlJugador.rlock();
-        tablero = &tablero_jugador;
+        tablero = tablero_jugador;
         rwlJugador.runlock();
         pos = 7; //BARCOS más el espacio tiene 7 letras
+        tableroRWLPuntero=&rwlJugador;
     }else{
     //Sino muestro los resultados de la batalla
+    std::cerr << "llego a la batalla" << std::endl;
         sprintf(buf, "BATALLA ");
         rwlRival.rlock();
-        tablero = &tablero_rival;
+        tablero = tablero_rival;
         rwlRival.runlock();
         pos = 8; //BATALLA más el espacio tiene 8 letras
+        tableroRWLPuntero=&rwlRival;
     }
-
+    RWLock& tableroRWL= *tableroRWLPuntero;
     for (unsigned int fila = 0; fila < alto; ++fila) {
         for (unsigned int col = 0; col < ancho; ++col) {
+            tableroRWL.rlock();
             char contenido = (*tablero)[fila][col];
+            tableroRWL.runlock();
             switch(contenido){
                 case VACIO:
                    buf[pos] = '-';
