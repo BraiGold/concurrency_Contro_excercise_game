@@ -128,7 +128,8 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
 
      // lista de casilleros que ocupa el barco actual (aún no confirmado)
     list<Casillero> barco_actual;
-
+ //ya mando el listo?
+  bool yaMandoListo=false;
 
 
     if (recibir_nombre_equipo(socket_fd, nombre_equipo) != 0) {
@@ -255,7 +256,7 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
             peleandoRWL.rlock();
             bool peleandoLocal=peleando;
             peleandoRWL.runlock();
-            if(peleandoLocal){
+            if(peleandoLocal || yaMandoListo){
 
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
@@ -265,6 +266,7 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
 
             }else{
                 // Estamos listos para la pelea
+                yaMandoListo=true;
                 nombresRWL.wlock();
                   cant_jugadores_listos++;
                  int cant_jugadores_listos_local=cant_jugadores_listos;
