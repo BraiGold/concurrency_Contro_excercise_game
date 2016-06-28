@@ -104,7 +104,7 @@ int main(int argc, const char* argv[]) {
 
     // aceptar conexiones entrantes.
     socket_size = sizeof(remoto);
-     RWLock rwl;
+     //RWLock rwl;
     while (true) {
         if ((socketfd_cliente = accept(socket_servidor, (struct sockaddr*) &remoto, (socklen_t*) &socket_size)) == -1)
             cerr << "Error al aceptar conexion" << endl;
@@ -131,6 +131,13 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
  //ya mando el listo?
   bool yaMandoListo=false;
 
+    peleandoRWL.rlock();
+    bool peleandoLocal=peleando;
+    peleandoRWL.runlock();
+    if(peleandoLocal){//si ya estan peleando cerrarle todo
+      terminar_servidor_de_jugador(socket_fd, barco_actual, tablero_equipo1, tablero1RWL);
+      return NULL;
+    }
 
     if (recibir_nombre_equipo(socket_fd, nombre_equipo) != 0) {
         // el cliente cortó la comunicación, o hubo un error. Cerramos todo.
@@ -210,7 +217,7 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
             peleandoRWL.rlock();
             bool peleandoLocal=peleando;
             peleandoRWL.runlock();
-            if(peleandoLocal){
+            if(peleandoLocal || yaMandoListo){
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
@@ -274,11 +281,11 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
                 nombresRWL.wunlock();
 
                 peleandoRWL.wlock();
-                std::cerr << "cant_jugadores_local ES: "<<cant_jugadores_local<< "y cant_jugadores_listos_local Es: "<<cant_jugadores_listos_local << std::endl;
+          //      std::cerr << "cant_jugadores_local ES: "<<cant_jugadores_local<< "y cant_jugadores_listos_local Es: "<<cant_jugadores_listos_local << std::endl;
                 if(cant_jugadores_local==cant_jugadores_listos_local){
                   peleando = true;
                 }
-                std::cerr << "peleando es: "<<peleando << std::endl;
+          //      std::cerr << "peleando es: "<<peleando << std::endl;
                 peleandoRWL.wunlock();
 
                 if (enviar_ok(socket_fd) != 0){
@@ -286,7 +293,7 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
                     return NULL;
                 }
             }
-            std::cerr << "cierro El LISTO" << std::endl;
+      //      std::cerr << "cierro El LISTO" << std::endl;
         }
         else if (comando == MSG_BARCO_TERMINADO) {
 
@@ -295,7 +302,7 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
             peleandoRWL.rlock();
             bool peleandoLocal=peleando;
             peleandoRWL.runlock();
-            if(peleandoLocal){
+            if(peleandoLocal || yaMandoListo){
                 if (enviar_error(socket_fd) != 0) {
                     // se produjo un error al enviar. Cerramos todo.
                     terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
@@ -379,7 +386,7 @@ void* atendedor_de_jugador(void* socket_fd_pointer) {///esta tiene la PAPA
 
         }
         else if (comando == MSG_UPDATE) {
-          std::cerr << "aca esta!!!" << std::endl;
+  //        std::cerr << "aca esta!!!" << std::endl;
             if (enviar_tablero(socket_fd, tablero_jugador, tablero_rival, rwlJugador, rwlRival) != 0) {
                 // se produjo un error al enviar. Cerramos todo.
                 terminar_servidor_de_jugador(socket_fd, barco_actual, *tablero_jugador, rwlJugador);
@@ -500,12 +507,12 @@ int enviar_tablero(int socket_fd, vector<vector<char> >* tablero_jugador, vector
     int pos;
     vector<vector<char> > *tablero;
 
-    std::cerr << "llego a enviar tablero" << std::endl;
+  //  std::cerr << "llego a enviar tablero" << std::endl;
     //Si no estoy peleando, muestro los barcos de mi equipo
     peleandoRWL.rlock();
     bool peleandoLocal=peleando;
     peleandoRWL.runlock();
-    std::cerr << "hasta aca bien peleandoLocal es: "<< peleandoLocal << std::endl;
+  //  std::cerr << "hasta aca bien peleandoLocal es: "<< peleandoLocal << std::endl;
     RWLock* tableroRWLPuntero;
 
     if(!peleandoLocal){//   ------------------------------------------------------------------------------------------------------------------------------------------
@@ -517,7 +524,7 @@ int enviar_tablero(int socket_fd, vector<vector<char> >* tablero_jugador, vector
         tableroRWLPuntero=&rwlJugador;
     }else{
     //Sino muestro los resultados de la batalla
-    std::cerr << "llego a la batalla" << std::endl;
+//    std::cerr << "llego a la batalla" << std::endl;
         sprintf(buf, "BATALLA ");
         rwlRival.rlock();
         tablero = tablero_rival;

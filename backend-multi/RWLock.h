@@ -14,6 +14,7 @@ class RWLock {
       pthread_mutex_t mutex;
       bool escritor;
       int lectores;
+      pthread_mutex_t pedidoEscritura;
 };
 
 #endif
